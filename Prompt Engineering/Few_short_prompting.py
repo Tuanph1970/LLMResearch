@@ -181,15 +181,15 @@ class EntityExtractor(InlineFewShot):
         examples = [
             (
                 "John Smith works at Google in Mountain View, California.",
-                '{"persons": ["John Smith"], "companies": ["Google"], "locations": ["Mountain View", "California"]}'
+                '{"persons": "John Smith", "companies": "Google", "locations": "Mountain View California"}'
             ),
             (
                 "Microsoft CEO Satya Nadella visited the Seattle headquarters.",
-                '{"persons": ["Satya Nadella"], "companies": ["Microsoft"], "locations": ["Seattle"]}'
+                '{"persons": "Satya Nadella", "companies": "Microsoft", "locations": "Seattle"}'
             ),
             (
                 "Apple's Tim Cook announced the new iPhone at the Cupertino event.",
-                '{"persons": ["Tim Cook"], "companies": ["Apple"], "locations": ["Cupertino"]}'
+                '{"persons": "Tim Cook", "companies": "Apple", "locations": "Cupertino"}'
             )
         ]
 
