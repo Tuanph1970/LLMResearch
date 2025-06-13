@@ -133,48 +133,228 @@ REASONING: [brief explanation]
         return base_agents
 
 
-class TechnicalAnalysisAgent(BaseAgent):
+class AlgorithmicTechnicalAgent(BaseAgent):
+    def __init__(self, model_name: str = None):
+        # No LLM model needed for algorithmic analysis
+        self.model_name = model_name
+
     def get_system_prompt(self) -> str:
-        return """
-You are a Technical Analysis Expert. Analyze stock data using:
+        return "Algorithmic Technical Analysis Agent"
 
-REQUIRED ANALYSIS:
-- Current price action and trends
-- Key support/resistance levels
-- RSI, MACD, Moving Averages
-- Volume analysis
-- Chart patterns
+    def calculate_rsi(self, prices: List[float], period: int = 14) -> float:
+        """Calculate RSI indicator"""
+        if len(prices) < period + 1:
+            return 50.0
 
-RESPONSE FORMAT:
-1. Technical Status: [BULLISH/BEARISH/NEUTRAL]
-2. Key Levels: Support: $X, Resistance: $Y
-3. Indicators Summary: [Brief analysis]
-4. Signal Strength: [1-10]
-5. Risk Factors: [What could invalidate analysis]
+        deltas = [prices[i] - prices[i - 1] for i in range(1, len(prices))]
+        gains = [d if d > 0 else 0 for d in deltas]
+        losses = [-d if d < 0 else 0 for d in deltas]
 
-Be specific with price levels and timeframes.
-"""
+        avg_gain = sum(gains[-period:]) / period
+        avg_loss = sum(losses[-period:]) / period
+
+        if avg_loss == 0:
+            return 100.0
+        rs = avg_gain / avg_loss
+        return 100 - (100 / (1 + rs))
+
+    def calculate_macd(self, prices: List[float], fast: int = 12, slow: int = 26, signal: int = 9) -> Dict[str, float]:
+        """Calculate MACD indicator"""
+        if len(prices) < slow:
+            return {"macd": 0, "signal": 0, "histogram": 0}
+
+        # Simple EMA calculation
+        def ema(data, period):
+            multiplier = 2 / (period + 1)
+            ema_values = [data[0]]
+            for price in data[1:]:
+                ema_values.append((price * multiplier) + (ema_values[-1] * (1 - multiplier)))
+            return ema_values[-1]
+
+        ema_fast = ema(prices, fast)
+        ema_slow = ema(prices, slow)
+        macd_line = ema_fast - ema_slow
+
+        # Signal line would need more historical MACD values
+        signal_line = macd_line * 0.9  # Simplified
+        histogram = macd_line - signal_line
+
+        return {"macd": macd_line, "signal": signal_line, "histogram": histogram}
+
+    def calculate_support_resistance(self, prices: List[float], volume: List[float] = None) -> Dict[str, float]:
+        """Calculate support and resistance levels"""
+        if len(prices) < 20:
+            current_price = prices[-1] if prices else 100
+            return {"support": current_price * 0.95, "resistance": current_price * 1.05}
+
+        # Find local minima and maxima
+        highs = []
+        lows = []
+
+        for i in range(1, len(prices) - 1):
+            if prices[i] > prices[i - 1] and prices[i] > prices[i + 1]:
+                highs.append(prices[i])
+            elif prices[i] < prices[i - 1] and prices[i] < prices[i + 1]:
+                lows.append(prices[i])
+
+        resistance = max(highs[-3:]) if len(highs) >= 3 else max(prices) * 1.02
+        support = min(lows[-3:]) if len(lows) >= 3 else min(prices) * 0.98
+
+        return {"support": support, "resistance": resistance}
+
+    def analyze_trend(self, prices: List[float]) -> str:
+        """Determine trend direction"""
+        if len(prices) < 10:
+            return "NEUTRAL"
+
+        # Simple moving averages
+        sma_short = sum(prices[-5:]) / 5
+        sma_long = sum(prices[-10:]) / 10
+
+        if sma_short > sma_long * 1.02:
+            return "BULLISH"
+        elif sma_short < sma_long * 0.98:
+            return "BEARISH"
+        else:
+            return "NEUTRAL"
+
+    def bollinger_bands(self, prices: List[float], period: int = 20, std_dev: int = 2) -> Dict[str, float]:
+        """Calculate Bollinger Bands"""
+        if len(prices) < period:
+            current = prices[-1] if prices else 100
+            return {"upper": current * 1.1, "middle": current, "lower": current * 0.9}
+
+        sma = sum(prices[-period:]) / period
+        variance = sum((p - sma) ** 2 for p in prices[-period:]) / period
+        std = variance ** 0.5
+
+        return {
+            "upper": sma + (std * std_dev),
+            "middle": sma,
+            "lower": sma - (std * std_dev)
+        }
+
+    def fibonacci_retracement(self, high: float, low: float) -> Dict[str, float]:
+        """Calculate Fibonacci retracement levels"""
+        diff = high - low
+        return {
+            "level_236": high - (diff * 0.236),
+            "level_382": high - (diff * 0.382),
+            "level_500": high - (diff * 0.500),
+            "level_618": high - (diff * 0.618),
+            "level_786": high - (diff * 0.786)
+        }
+
+    def pattern_detection(self, prices: List[float]) -> List[str]:
+        """Detect chart patterns"""
+        patterns = []
+        if len(prices) < 10:
+            return patterns
+
+        # Simple pattern detection
+        recent = prices[-10:]
+
+        # Double bottom
+        if len(recent) >= 5:
+            min_idx = recent.index(min(recent))
+            if min_idx not in [0, len(recent) - 1]:
+                patterns.append("POTENTIAL_DOUBLE_BOTTOM")
+
+        # Ascending triangle
+        highs = [recent[i] for i in range(1, len(recent) - 1)
+                 if recent[i] > recent[i - 1] and recent[i] > recent[i + 1]]
+        if len(highs) >= 2 and max(highs) - min(highs) < max(highs) * 0.02:
+            patterns.append("ASCENDING_TRIANGLE")
+
+        return patterns
+
+    def volume_analysis(self, prices: List[float], volume: List[float]) -> Dict[str, Any]:
+        """Analyze volume patterns"""
+        if not volume or len(volume) < 10:
+            return {"trend": "UNKNOWN", "strength": 5}
+
+        avg_volume = sum(volume[-10:]) / 10
+        recent_volume = volume[-1]
+        volume_ratio = recent_volume / avg_volume if avg_volume > 0 else 1
+
+        return {
+            "trend": "HIGH" if volume_ratio > 1.5 else "LOW" if volume_ratio < 0.5 else "NORMAL",
+            "ratio": volume_ratio,
+            "strength": min(10, max(1, int(volume_ratio * 5)))
+        }
+        """Calculate overall signal strength (1-10)"""
+        score = 5  # Neutral base
+
+        # RSI contribution
+        rsi = indicators.get("rsi", 50)
+        if rsi > 70:
+            score -= 2  # Overbought
+        elif rsi < 30:
+            score += 2  # Oversold
+        elif 40 <= rsi <= 60:
+            score += 1  # Healthy range
+
+        # MACD contribution
+        macd_data = indicators.get("macd", {})
+        if macd_data.get("histogram", 0) > 0:
+            score += 1
+        else:
+            score -= 1
+
+        # Trend contribution
+        trend = indicators.get("trend", "NEUTRAL")
+        if trend == "BULLISH":
+            score += 2
+        elif trend == "BEARISH":
+            score -= 2
+
+        return max(1, min(10, score))
 
     def process_query(self, question: str, stock_data: Dict[str, Any]) -> AgentResponse:
-        prompt = f"""
-{self.get_system_prompt()}
+        # Extract price and volume data
+        prices = stock_data.get("prices", [])
+        volume = stock_data.get("volume", [])
+        current_price = stock_data.get("current_price", prices[-1] if prices else 0)
 
-STOCK DATA: {stock_data}
-USER QUESTION: {question}
+        # Calculate technical indicators
+        rsi = self.calculate_rsi(prices)
+        macd = self.calculate_macd(prices)
+        levels = self.calculate_support_resistance(prices, volume)
+        trend = self.analyze_trend(prices)
 
-Provide technical analysis with specific recommendations.
+        indicators = {
+            "rsi": rsi,
+            "macd": macd,
+            "support": levels["support"],
+            "resistance": levels["resistance"],
+            "trend": trend
+        }
+
+        signal_strength = self.calculate_signal_strength(indicators)
+
+        # Generate response
+        response = f"""
+TECHNICAL ANALYSIS RESULTS:
+
+1. Technical Status: {trend}
+2. Key Levels: Support: ${levels['support']:.2f}, Resistance: ${levels['resistance']:.2f}
+3. Indicators Summary:
+   - RSI: {rsi:.1f} ({'Overbought' if rsi > 70 else 'Oversold' if rsi < 30 else 'Normal'})
+   - MACD: {macd['macd']:.3f} (Signal: {macd['signal']:.3f})
+   - Current Price: ${current_price:.2f}
+4. Signal Strength: {signal_strength}/10
+5. Risk Factors: {'Price near resistance' if current_price > levels['resistance'] * 0.98 else 'Price near support' if current_price < levels['support'] * 1.02 else 'Price in normal range'}
+
+RECOMMENDATION: {'BUY' if signal_strength >= 7 else 'SELL' if signal_strength <= 3 else 'HOLD'}
 """
 
-        response = ollama.chat(
-            model=self.model_name,
-            messages=[{"role": "user", "content": prompt}]
-        )
+        confidence = min(0.95, 0.6 + (abs(signal_strength - 5) * 0.07))
 
         return AgentResponse(
             agent_type="technical",
-            response=response['message']['content'],
-            confidence=0.8,
-            data_used={"technical_indicators": stock_data.get("technical", {})}
+            response=response.strip(),
+            confidence=confidence,
+            data_used=indicators
         )
 
 
@@ -317,7 +497,7 @@ class StockAnalysisOrchestrator:
 
         # Initialize agents
         self.agents = {
-            "technical": TechnicalAnalysisAgent(analysis_model),
+            "technical": AlgorithmicTechnicalAgent(),  # Uses custom algorithms instead of LLM
             "fundamental": FundamentalAnalysisAgent(analysis_model),
             "risk": RiskAssessmentAgent(analysis_model),
         }
