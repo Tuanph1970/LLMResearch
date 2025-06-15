@@ -141,6 +141,34 @@ class AlgorithmicTechnicalAgent(BaseAgent):
     def get_system_prompt(self) -> str:
         return "Algorithmic Technical Analysis Agent"
 
+    def calculate_signal_strength(self, indicators: Dict[str, Any]) -> int:
+        """Calculate overall signal strength (1-10)"""
+        score = 5  # Neutral base
+
+        # RSI contribution
+        rsi = indicators.get("rsi", 50)
+        if rsi > 70:
+            score -= 2  # Overbought
+        elif rsi < 30:
+            score += 2  # Oversold
+        elif 40 <= rsi <= 60:
+            score += 1  # Healthy range
+
+        # MACD contribution
+        macd_data = indicators.get("macd", {})
+        if macd_data.get("histogram", 0) > 0:
+            score += 1
+        else:
+            score -= 1
+
+        # Trend contribution
+        trend = indicators.get("trend", "NEUTRAL")
+        if trend == "BULLISH":
+            score += 2
+        elif trend == "BEARISH":
+            score -= 2
+
+        return max(1, min(10, score))
     def calculate_rsi(self, prices: List[float], period: int = 14) -> float:
         """Calculate RSI indicator"""
         if len(prices) < period + 1:
@@ -491,7 +519,7 @@ IMPORTANT: Always include "This is not financial advice" disclaimer.
 
 class StockAnalysisOrchestrator:
     def __init__(self, classification_model: str = "llama3.1:8b",
-                 analysis_model: str = "llama3.1:70b"):
+                 analysis_model: str = "llama3.1:8b"):
         self.classifier = QuestionClassifier(classification_model)
         self.synthesizer = ResponseSynthesizer(analysis_model)
 
