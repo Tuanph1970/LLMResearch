@@ -35,7 +35,7 @@ class AgentResponse:
 
 
 class BaseAgent(ABC):
-    def __init__(self, model_name: str = "llama3.1:70b"):
+    def __init__(self, model_name: str = "llama3.1:8b"):
         self.model_name = model_name
 
     @abstractmethod
@@ -74,6 +74,17 @@ STOCK_SYMBOL: [symbol or NONE]
 REASONING: [brief explanation]
 """
 
+    def translate_to_english(self, vietnamese_text: str) -> str:
+            prompt = f"""
+    Translate this Vietnamese text to English for stock analysis:
+    Vietnamese: {vietnamese_text}
+    English:
+    """
+            response = ollama.chat(
+                model=self.translator_model,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response['message']['content']
     def classify(self, question: str) -> RoutingResult:
         prompt = self.classification_prompt.format(question=question)
 
